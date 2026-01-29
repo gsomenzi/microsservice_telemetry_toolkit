@@ -118,7 +118,7 @@ A biblioteca valida automaticamente os nomes dos spans:
 
 - **Span raiz**: Deve ter exatamente 3 partes separadas por `.` (ex: `servico.recurso.acao`)
 - **Span de ação**: Deve ter exatamente 1 parte (ex: `validar`, `salvar`)
-- Não pode conter caracteres especiais como `!@#$%^&*()+=[]{}|\;:'",<>/?`~`
+- Não pode conter caracteres especiais como ``!@#$%^&*()+=[]{}|\;:'",<>/?~``
 
 ```python
 # ✅ Correto
