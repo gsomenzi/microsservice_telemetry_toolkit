@@ -3,7 +3,7 @@ name = "microsservice-telemetry-toolkit"
 version = "0.1.0"
 description = "A library for telemetry (tracing) in Python microservices using OpenTelemetry"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 authors = [{ name = "Guilherme Somenzi", email = "guilherme@somenzi.dev" }]
 license = { text = "MIT" }
 keywords = [
