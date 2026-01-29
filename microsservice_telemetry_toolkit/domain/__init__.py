@@ -1,4 +1,4 @@
-"""Domain layer exports - ports and value objects."""
+"""Exportações da camada de domínio - portas e objetos de valor."""
 
 from .port.chain_handler import ChainHandler
 from .port.generic_tracer import GenericTracer

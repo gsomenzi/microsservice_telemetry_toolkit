@@ -1,4 +1,4 @@
-"""Application layer exports."""
+"""Exportações da camada de aplicação."""
 
 from .services import HTTPAuthHeaderMapper, SpanNameValidator
 
