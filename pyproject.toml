@@ -1,12 +1,10 @@
 [project]
-name = "python-service-telemetry-toolkit"
+name = "microsservice-telemetry-toolkit"
 version = "0.1.0"
 description = "A library for telemetry (tracing) in Python microservices using OpenTelemetry"
 readme = "README.md"
 requires-python = ">=3.14"
-authors = [
-    { name = "Guilherme Somenzi", email = "guilherme@somenzi.dev" }
-]
+authors = [{ name = "Guilherme Somenzi", email = "guilherme@somenzi.dev" }]
 license = { text = "MIT" }
 keywords = [
     "opentelemetry",
@@ -39,4 +37,3 @@ Issues = "https://github.com/gsomenzi/microsservice_telemetry_toolkit/issues"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-

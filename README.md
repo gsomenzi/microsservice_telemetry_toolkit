@@ -16,14 +16,26 @@ Uma biblioteca Python para adicionar telemetria (tracing) aos seus microsserviç
 
 ### Usando uv (recomendado)
 
+Instalar do PyPI:
 ```bash
 uv add python-service-telemetry-toolkit
 ```
 
+Instalar diretamente do repositório Git:
+```bash
+uv add git+https://github.com/gsomenzi/microsservice_telemetry_toolkit.git
+```
+
 ### Usando pip
 
+Instalar do PyPI:
 ```bash
 pip install python-service-telemetry-toolkit
+```
+
+Instalar diretamente do repositório Git:
+```bash
+pip install git+https://github.com/gsomenzi/microsservice_telemetry_toolkit.git
 ```
 
 ## Uso Básico
@@ -62,13 +74,22 @@ if __name__ == "__main__":
 ### Exportando para OTLP
 
 ```python
-from microsservice_telemetry_toolkit import OtelAppTracer
+from microsservice_telemetry_toolkit import (
+    OtelAppTracer, 
+    HTTPAuthHeaderMapper, 
+    Base64TextEncoder
+)
 
-# Configurar exportação para um coletor OTLP
+# Configurar autenticação usando HTTPAuthHeaderMapper
+encoder = Base64TextEncoder()
+auth_mapper = HTTPAuthHeaderMapper(encoder)
+headers = auth_mapper.map_from_credentials("seu-usuario", "sua-senha")
+
+# Configurar exportação para um coletor OTLP com autenticação
 app_tracer = OtelAppTracer(
     service_name="meu-servico",
     otlp_endpoint="http://localhost:4318/v1/traces",
-    headers={"Authorization": "Bearer seu-token"}
+    headers=headers
 )
 
 def processar_dados():
