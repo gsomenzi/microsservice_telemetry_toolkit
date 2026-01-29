@@ -8,7 +8,7 @@ from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
     SimpleSpanProcessor,
 )
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import DEPLOYMENT_ENVIRONMENT, SERVICE_NAME, Resource
 
 from ..domain.port.generic_tracer import GenericTracer
 from ..application.services.span_name_validator import SpanNameValidator
@@ -22,10 +22,16 @@ class OtelAppTracer(GenericTracer):
     def __init__(
         self,
         service_name: str,
+        service_environment: str = "development",
         otlp_endpoint: Optional[str] = None,
         headers: Optional[dict[str, str]] = None,
     ):
-        resource = Resource.create(attributes={SERVICE_NAME: service_name})
+        resource = Resource.create(
+            attributes={
+                SERVICE_NAME: service_name,
+                DEPLOYMENT_ENVIRONMENT: service_environment,
+            }
+        )
         provider = TracerProvider(resource=resource)
         processor = (
             BatchSpanProcessor(
@@ -36,7 +42,7 @@ class OtelAppTracer(GenericTracer):
         )
         provider.add_span_processor(processor)
         trace.set_tracer_provider(provider)
-        self._tracer = provider.get_tracer("base-app-tracer")
+        self._tracer = provider.get_tracer(f"{service_name}-tracer")
 
     @contextmanager
     def start_root_span(self, name: str):
