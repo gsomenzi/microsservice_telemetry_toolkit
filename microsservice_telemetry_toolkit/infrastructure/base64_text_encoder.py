@@ -1,5 +1,6 @@
-from domain.port.text_encoder import TextEncoder
 import base64
+
+from ..domain.port.text_encoder import TextEncoder
 
 
 class Base64TextEncoder(TextEncoder):
