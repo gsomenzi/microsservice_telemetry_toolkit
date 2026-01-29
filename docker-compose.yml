@@ -1,0 +1,12 @@
+services:
+  otlp-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: otlp-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8888:8888"
+    restart: unless-stopped
