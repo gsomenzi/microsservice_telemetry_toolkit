@@ -1,11 +1,12 @@
 """
 Microsservice Telemetry Toolkit
 
-Uma biblioteca para telemetria (rastreamento) em microsserviços Python usando OpenTelemetry.
+Uma biblioteca para telemetria (rastreamento e logging) em microsserviços Python usando OpenTelemetry.
 
 Principais exportações:
-    - OtelAppTracer: Implementação principal do tracer para criação de spans
+    - OtelTracer: Implementação principal do tracer para criação de spans
     - OtelSpan: Wrapper de span com métodos utilitários
+    - OtelLogger: Configurador global de logging com OpenTelemetry
     - GenericTracer: Interface abstrata do tracer (porta)
     - GenericSpan: Interface abstrata do span (porta)
     - TextEncoder: Interface abstrata de codificador de texto (porta)
@@ -13,8 +14,8 @@ Principais exportações:
     - HTTPAuthHeaderMapper: Auxiliar para criação de cabeçalhos de autenticação HTTP
 """
 
-# Componentes principais de rastreamento
-from .infrastructure import Base64TextEncoder, OtelTracer, OtelSpan
+# Componentes principais de rastreamento e logging
+from .infrastructure import Base64TextEncoder, OtelTracer, OtelSpan, OtelLogger
 
 # Portas do domínio (interfaces)
 from .domain import (
@@ -36,6 +37,7 @@ __all__ = [
     # Componentes principais de rastreamento
     "OtelTracer",
     "OtelSpan",
+    "OtelLogger",
     # Interfaces/Portas
     "GenericTracer",
     "GenericSpan",

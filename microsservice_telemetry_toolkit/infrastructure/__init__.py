@@ -7,6 +7,7 @@ from .otel_histogram import OtelHistogram
 from .otel_gauge import OtelGauge
 from .otel_counter import OtelCounter
 from .otel_up_down_counter import OtelUpDownCounter
+from .otel_logger import OtelLogger
 
 __all__ = [
     "Base64TextEncoder",
@@ -16,4 +17,5 @@ __all__ = [
     "OtelGauge",
     "OtelCounter",
     "OtelUpDownCounter",
+    "OtelLogger",
 ]
