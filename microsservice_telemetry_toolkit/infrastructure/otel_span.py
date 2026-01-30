@@ -1,7 +1,7 @@
 from opentelemetry import trace
 from opentelemetry.trace import Span, types
 
-from ..domain.port.generic_span import GenericSpan
+from ..domain.port.generic_span import GenericSpan, SpanContext
 
 
 class OtelSpan(GenericSpan):
@@ -27,9 +27,9 @@ class OtelSpan(GenericSpan):
     ):
         self._span.set_attribute(key, value)
 
-    def get_context(self) -> dict[str, str]:
+    def get_context(self) -> SpanContext:
         ctx = self._span.get_span_context()
-        ctx_dict = {
+        ctx_dict: SpanContext = {
             "trace_id": format(ctx.trace_id, "032x"),
             "span_id": format(ctx.span_id, "016x"),
             "trace_flags": int(ctx.trace_flags),

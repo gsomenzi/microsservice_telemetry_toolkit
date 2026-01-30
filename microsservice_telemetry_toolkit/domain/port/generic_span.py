@@ -1,5 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, TypedDict
+
+
+class SpanContext(TypedDict):
+    trace_id: str
+    span_id: str
+    trace_flags: int
 
 
 class GenericSpan(ABC):
@@ -19,7 +25,7 @@ class GenericSpan(ABC):
         ...
 
     @abstractmethod
-    def get_context(self) -> dict[str, str]:
+    def get_context(self) -> SpanContext:
         """Retorna o contexto do span (trace_id, span_id, etc)."""
         ...
 

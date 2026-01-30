@@ -1,18 +1,19 @@
 from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
-from typing import Any, Optional
+from typing import Optional
 from .generic_histogram import GenericHistogram
 from .generic_gauge import GenericGauge
 from .generic_counter import GenericCounter
 from .generic_up_down_counter import GenericUpDownCounter
+from .generic_span import GenericSpan
 
 
 class GenericTracer(ABC):
     @abstractmethod
-    def start_root_span(self, name: str) -> AbstractContextManager[Any]: ...
+    def start_root_span(self, name: str) -> AbstractContextManager[GenericSpan]: ...
 
     @abstractmethod
-    def start_span_action(self, name: str) -> AbstractContextManager[Any]: ...
+    def start_span_action(self, name: str) -> AbstractContextManager[GenericSpan]: ...
 
     @abstractmethod
     def create_histogram(
