@@ -1,8 +1,10 @@
 from opentelemetry import trace
 from opentelemetry.trace import Span, types
 
+from ..domain.port.generic_span import GenericSpan
 
-class OtelSpan:
+
+class OtelSpan(GenericSpan):
     name: str
     _span: Span
 
