@@ -13,6 +13,15 @@ class GenericTracer(ABC):
     def start_root_span(self, name: str) -> AbstractContextManager[GenericSpan]: ...
 
     @abstractmethod
+    def start_root_span_with_context(
+        self,
+        name: str,
+        trace_id: str,
+        span_id: str,
+        trace_flags: int = 0x01,
+    ) -> AbstractContextManager[GenericSpan]: ...
+
+    @abstractmethod
     def start_span_action(self, name: str) -> AbstractContextManager[GenericSpan]: ...
 
     @abstractmethod

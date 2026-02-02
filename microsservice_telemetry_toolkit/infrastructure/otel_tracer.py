@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Optional
 
-from opentelemetry import trace, metrics
+from opentelemetry import trace, metrics, context
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.trace.export import (
@@ -14,6 +14,12 @@ from opentelemetry.sdk.resources import DEPLOYMENT_ENVIRONMENT, SERVICE_NAME, Re
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.trace import (
+    SpanContext,
+    TraceFlags,
+    NonRecordingSpan,
+    set_span_in_context,
+)
 
 from ..domain.port.generic_tracer import GenericTracer
 from ..domain.port.generic_histogram import GenericHistogram
@@ -95,6 +101,39 @@ class OtelTracer(GenericTracer):
                 self._span_stack.reset(token)
 
     @contextmanager
+    def start_root_span_with_context(
+        self,
+        name: str,
+        trace_id: str,
+        span_id: str,
+        trace_flags: int = 0x01,
+    ):
+        validator = SpanNameValidator(parts_count=3)
+        validator.validate(name)
+        stack = self._span_stack.get() or []
+        if stack:
+            raise RuntimeError(
+                "start_root_span_with_context must be used as a root span. Use start_span_action for nested spans."
+            )
+        trace_id_int = self._cast_trace_id(trace_id)
+        span_id_int = self._cast_span_id(span_id)
+        span_context = SpanContext(
+            trace_id=trace_id_int,
+            span_id=span_id_int,
+            is_remote=True,
+            trace_flags=TraceFlags(trace_flags),
+        )
+        non_recording_span = NonRecordingSpan(span_context)
+        ctx = set_span_in_context(non_recording_span)
+        with self._tracer.start_as_current_span(name, context=ctx) as span:
+            new_stack = [name]
+            token = self._span_stack.set(new_stack)
+            try:
+                yield OtelSpan(name, span)
+            finally:
+                self._span_stack.reset(token)
+
+    @contextmanager
     def start_span_action(self, name: str):
         validator = SpanNameValidator(parts_count=1)
         validator.validate(name)
@@ -140,3 +179,29 @@ class OtelTracer(GenericTracer):
     ) -> GenericUpDownCounter:
         counter = self._meter.create_up_down_counter(name, unit, description)
         return OtelUpDownCounter(counter)
+
+    def _cast_trace_id(self, trace_id: str) -> int:
+        if len(trace_id) != 32:
+            raise ValueError(
+                f"trace_id must have exactly 32 hexadecimal characters, received: {len(trace_id)}"
+            )
+        try:
+            trace_id_int = int(trace_id, 16)
+        except ValueError as e:
+            raise ValueError(f"trace_id must be a valid hexadecimal string: {e}")
+        if trace_id_int == 0:
+            raise ValueError("trace_id cannot be zero")
+        return trace_id_int
+
+    def _cast_span_id(self, span_id: str) -> int:
+        if len(span_id) != 16:
+            raise ValueError(
+                f"span_id must have exactly 16 hexadecimal characters, received: {len(span_id)}"
+            )
+        try:
+            span_id_int = int(span_id, 16)
+        except ValueError as e:
+            raise ValueError(f"span_id must be a valid hexadecimal string: {e}")
+        if span_id_int == 0:
+            raise ValueError("span_id cannot be zero")
+        return span_id_int
