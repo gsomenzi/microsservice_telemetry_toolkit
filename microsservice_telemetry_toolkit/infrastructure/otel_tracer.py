@@ -139,7 +139,18 @@ class OtelTracer(GenericTracer):
                 "start_root_span_with_context must be used as a root span. Use start_span_action for nested spans."
             )
         
-        # Converter trace_id e span_id de hexadecimal para inteiro
+        # Validar e converter trace_id e span_id de hexadecimal para inteiro
+        # trace_id deve ter 32 caracteres hex (128 bits)
+        # span_id deve ter 16 caracteres hex (64 bits)
+        if len(trace_id) != 32:
+            raise ValueError(
+                f"trace_id deve ter exatamente 32 caracteres hexadecimais, recebido: {len(trace_id)}"
+            )
+        if len(span_id) != 16:
+            raise ValueError(
+                f"span_id deve ter exatamente 16 caracteres hexadecimais, recebido: {len(span_id)}"
+            )
+        
         try:
             trace_id_int = int(trace_id, 16)
             span_id_int = int(span_id, 16)
@@ -147,6 +158,12 @@ class OtelTracer(GenericTracer):
             raise ValueError(
                 f"trace_id e span_id devem ser strings hexadecimais válidas: {e}"
             )
+        
+        # Validar que os IDs não são zero (inválidos)
+        if trace_id_int == 0:
+            raise ValueError("trace_id não pode ser zero")
+        if span_id_int == 0:
+            raise ValueError("span_id não pode ser zero")
         
         # Criar um SpanContext com os IDs fornecidos
         span_context = SpanContext(

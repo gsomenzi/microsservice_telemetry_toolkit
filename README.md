@@ -439,9 +439,16 @@ with tracer_b.start_root_span_with_context(
 #### Parâmetros do `start_root_span_with_context`
 
 - **name** (str): Nome do span no formato `servico.recurso.acao`
-- **trace_id** (str): ID do trace em formato hexadecimal (32 caracteres)
-- **span_id** (str): ID do span pai em formato hexadecimal (16 caracteres)
+- **trace_id** (str): ID do trace em formato hexadecimal (exatamente 32 caracteres, não pode ser zero)
+- **span_id** (str): ID do span pai em formato hexadecimal (exatamente 16 caracteres, não pode ser zero)
 - **trace_flags** (int, opcional): Flags do trace (padrão: `0x01` para sampled)
+
+**Validações:**
+- O `trace_id` deve ter exatamente 32 caracteres hexadecimais (128 bits)
+- O `span_id` deve ter exatamente 16 caracteres hexadecimais (64 bits)
+- Ambos os IDs devem ser valores hexadecimais válidos (0-9, a-f, A-F)
+- Nenhum dos IDs pode ser zero (todos zeros)
+- IDs inválidos resultarão em `ValueError` com mensagem descritiva
 
 #### Exemplo: Integração com HTTP Headers
 
