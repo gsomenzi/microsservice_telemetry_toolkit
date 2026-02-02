@@ -9,6 +9,7 @@ Uma biblioteca Python para adicionar telemetria (tracing) aos seus microsserviç
 - ✅ Exportação para OTLP (OpenTelemetry Protocol)
 - ✅ Validação automática de nomes de spans
 - ✅ Suporte a spans aninhados
+- ✅ **Criação de spans com contexto predefinido para rastreamento distribuído**
 - ✅ Métricas (Counter, Gauge, Histogram, UpDownCounter)
 - ✅ Logging estruturado com OpenTelemetry
 - ✅ Arquitetura limpa (Clean Architecture)
@@ -377,6 +378,157 @@ with app_tracer.start_root_span("servico.operacao.executar") as span:
         span.record_exception(e)
         # ou registrar e re-lançar
         span.record_and_raise_exception(e)
+```
+
+### Criação de Spans com Contexto Predefinido
+
+A biblioteca suporta a criação de spans com contexto de rastreamento predefinido, permitindo a continuidade de traces entre diferentes sistemas e microsserviços. Isso é especialmente útil quando:
+
+- Um microsserviço publica uma mensagem em uma fila e anexa o `trace_id`
+- Outro microsserviço consome a mensagem e quer dar continuidade ao trace
+- Você precisa correlacionar operações entre serviços diferentes
+
+#### Exemplo: Rastreamento Distribuído com Filas
+
+```python
+from microsservice_telemetry_toolkit import OtelTracer
+
+# ===== SERVIÇO A: Publica mensagem na fila =====
+tracer_a = OtelTracer(service_name="service-producer")
+
+with tracer_a.start_root_span("service.queue.publish") as span:
+    # Obter o contexto do span
+    context = span.get_context()
+    trace_id = context['trace_id']
+    span_id = context['span_id']
+    
+    # Publicar mensagem com trace_id nos headers
+    message = {
+        "data": "Dados importantes",
+        "headers": {
+            "X-Trace-Id": trace_id,
+            "X-Span-Id": span_id
+        }
+    }
+    queue.publish(message)
+    span.set_attribute("message.queue", "pedidos")
+
+# ===== SERVIÇO B: Consome mensagem e continua o trace =====
+tracer_b = OtelTracer(service_name="service-consumer")
+
+# Receber mensagem da fila
+message = queue.receive()
+trace_id = message["headers"]["X-Trace-Id"]
+span_id = message["headers"]["X-Span-Id"]
+
+# Criar span que continua o trace do Serviço A
+with tracer_b.start_root_span_with_context(
+    "service.message.process",
+    trace_id=trace_id,
+    span_id=span_id
+) as span:
+    # O novo span terá o mesmo trace_id, permitindo visualizar
+    # toda a operação como uma única transação distribuída
+    span.set_attribute("message.processed", True)
+    
+    # Você pode criar spans aninhados normalmente
+    with tracer_b.start_span_action("validate") as validate_span:
+        validate_span.set_attribute("validation.status", "ok")
+```
+
+#### Parâmetros do `start_root_span_with_context`
+
+- **name** (str): Nome do span no formato `servico.recurso.acao`
+- **trace_id** (str): ID do trace em formato hexadecimal (32 caracteres)
+- **span_id** (str): ID do span pai em formato hexadecimal (16 caracteres)
+- **trace_flags** (int, opcional): Flags do trace (padrão: `0x01` para sampled)
+
+#### Exemplo: Integração com HTTP Headers
+
+```python
+from microsservice_telemetry_toolkit import OtelTracer
+from flask import Flask, request
+import requests
+
+app = Flask(__name__)
+tracer = OtelTracer(service_name="api-gateway")
+
+@app.route("/api/pedidos", methods=["POST"])
+def criar_pedido():
+    # Se a requisição já tem trace_id, continue o trace
+    trace_id = request.headers.get("X-Trace-Id")
+    span_id = request.headers.get("X-Span-Id")
+    
+    if trace_id and span_id:
+        # Continuar trace existente
+        with tracer.start_root_span_with_context(
+            "api.pedidos.criar",
+            trace_id=trace_id,
+            span_id=span_id
+        ) as span:
+            span.set_attribute("http.method", "POST")
+            # Processar pedido...
+    else:
+        # Criar novo trace
+        with tracer.start_root_span("api.pedidos.criar") as span:
+            span.set_attribute("http.method", "POST")
+            # Processar pedido...
+    
+    return {"status": "ok"}
+```
+
+#### Exemplo: Sistema de Eventos com Kafka
+
+```python
+from microsservice_telemetry_toolkit import OtelTracer
+from kafka import KafkaProducer, KafkaConsumer
+import json
+
+# ===== PRODUTOR: Publica evento com trace context =====
+tracer_producer = OtelTracer(service_name="event-producer")
+producer = KafkaProducer(
+    bootstrap_servers=['localhost:9092'],
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
+
+with tracer_producer.start_root_span("event.order.created") as span:
+    context = span.get_context()
+    
+    event = {
+        "order_id": "123",
+        "customer_id": "456",
+        "trace_context": {
+            "trace_id": context['trace_id'],
+            "span_id": context['span_id']
+        }
+    }
+    
+    producer.send('orders', value=event)
+    span.set_attribute("event.type", "order.created")
+
+# ===== CONSUMIDOR: Processa evento e continua o trace =====
+tracer_consumer = OtelTracer(service_name="event-consumer")
+consumer = KafkaConsumer(
+    'orders',
+    bootstrap_servers=['localhost:9092'],
+    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+)
+
+for message in consumer:
+    event = message.value
+    trace_context = event.get("trace_context", {})
+    
+    # Criar span que continua o trace do produtor
+    with tracer_consumer.start_root_span_with_context(
+        "event.order.process",
+        trace_id=trace_context["trace_id"],
+        span_id=trace_context["span_id"]
+    ) as span:
+        span.set_attribute("order.id", event["order_id"])
+        
+        with tracer_consumer.start_span_action("send_email") as email_span:
+            # Enviar email de confirmação
+            email_span.set_status_ok()
 ```
 
 ### Validação de Nomes de Spans
