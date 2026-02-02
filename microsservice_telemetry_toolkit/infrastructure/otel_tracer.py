@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Optional
 
-from opentelemetry import trace, metrics
+from opentelemetry import trace, metrics, context
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.trace.export import (
@@ -14,6 +14,7 @@ from opentelemetry.sdk.resources import DEPLOYMENT_ENVIRONMENT, SERVICE_NAME, Re
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.trace import SpanContext, TraceFlags, NonRecordingSpan, set_span_in_context
 
 from ..domain.port.generic_tracer import GenericTracer
 from ..domain.port.generic_histogram import GenericHistogram
@@ -87,6 +88,82 @@ class OtelTracer(GenericTracer):
                 "start_root_span must be used as a root span. Use start_span_action for nested spans."
             )
         with self._tracer.start_as_current_span(name) as span:
+            new_stack = [name]
+            token = self._span_stack.set(new_stack)
+            try:
+                yield OtelSpan(name, span)
+            finally:
+                self._span_stack.reset(token)
+
+    @contextmanager
+    def start_root_span_with_context(
+        self,
+        name: str,
+        trace_id: str,
+        span_id: str,
+        trace_flags: int = 0x01,
+    ):
+        """
+        Cria um span raiz com um contexto de rastreamento predefinido.
+        
+        Útil para dar continuidade a traces entre sistemas, como quando:
+        - Um microsserviço publica uma mensagem em uma fila com trace_id
+        - Outro serviço consome a mensagem e quer continuar o trace
+        
+        Args:
+            name: Nome do span (deve seguir formato service.resource.action)
+            trace_id: ID do trace em formato hexadecimal (32 caracteres)
+            span_id: ID do span pai em formato hexadecimal (16 caracteres)
+            trace_flags: Flags do trace (padrão 0x01 para sampled)
+        
+        Exemplo:
+            # Recebe trace_id de uma mensagem da fila
+            message = queue.receive()
+            trace_id = message.headers['X-Trace-Id']
+            span_id = message.headers['X-Span-Id']
+            
+            # Cria um span que continua o trace
+            with tracer.start_root_span_with_context(
+                "service.message.process",
+                trace_id=trace_id,
+                span_id=span_id
+            ) as span:
+                # Processar mensagem
+                span.set_attribute("message.id", message.id)
+        """
+        validator = SpanNameValidator(parts_count=3)
+        validator.validate(name)
+        stack = self._span_stack.get() or []
+        if stack:
+            raise RuntimeError(
+                "start_root_span_with_context must be used as a root span. Use start_span_action for nested spans."
+            )
+        
+        # Converter trace_id e span_id de hexadecimal para inteiro
+        try:
+            trace_id_int = int(trace_id, 16)
+            span_id_int = int(span_id, 16)
+        except ValueError as e:
+            raise ValueError(
+                f"trace_id e span_id devem ser strings hexadecimais válidas: {e}"
+            )
+        
+        # Criar um SpanContext com os IDs fornecidos
+        span_context = SpanContext(
+            trace_id=trace_id_int,
+            span_id=span_id_int,
+            is_remote=True,
+            trace_flags=TraceFlags(trace_flags),
+        )
+        
+        # Criar um span não-gravável com esse contexto
+        non_recording_span = NonRecordingSpan(span_context)
+        
+        # Definir esse span no contexto
+        ctx = set_span_in_context(non_recording_span)
+        
+        # Iniciar o novo span como filho desse contexto
+        with self._tracer.start_as_current_span(name, context=ctx) as span:
             new_stack = [name]
             token = self._span_stack.set(new_stack)
             try:
