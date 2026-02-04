@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Optional
 
-from opentelemetry import trace, metrics, context
+from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.trace.export import (
@@ -41,7 +41,8 @@ class OtelTracer(GenericTracer):
         self,
         service_name: str,
         service_environment: str = "development",
-        otlp_endpoint: Optional[str] = None,
+        tracer_otlp_endpoint: Optional[str] = None,
+        meter_otlp_endpoint: Optional[str] = None,
         headers: Optional[dict[str, str]] = None,
     ):
         resource = Resource.create(
@@ -50,8 +51,8 @@ class OtelTracer(GenericTracer):
                 DEPLOYMENT_ENVIRONMENT: service_environment,
             }
         )
-        self._tracer = self._define_tracer(resource, otlp_endpoint, headers)
-        self._meter = self._define_meter(resource, otlp_endpoint, headers)
+        self._tracer = self._define_tracer(resource, tracer_otlp_endpoint, headers)
+        self._meter = self._define_meter(resource, meter_otlp_endpoint, headers)
 
     def _define_tracer(
         self,
