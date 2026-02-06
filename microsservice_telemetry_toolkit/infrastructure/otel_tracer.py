@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Optional
+from typing import Any, Optional
 
 from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
@@ -21,7 +21,7 @@ from opentelemetry.trace import (
     set_span_in_context,
 )
 
-from ..domain.port.generic_tracer import GenericTracer
+from ..domain.port.generic_tracer import GenericTracer, GenericSpanContext
 from ..domain.port.generic_histogram import GenericHistogram
 from ..domain.port.generic_gauge import GenericGauge
 from ..domain.port.generic_counter import GenericCounter
@@ -85,7 +85,7 @@ class OtelTracer(GenericTracer):
         return provider.get_meter(f"{resource.attributes[SERVICE_NAME]}-meter")
 
     @contextmanager
-    def start_root_span(self, name: str):
+    def start_root_span(self, name: str, context: Optional[GenericSpanContext] = None):
         validator = SpanNameValidator(parts_count=3)
         validator.validate(name)
         stack = self._span_stack.get() or []
@@ -93,40 +93,20 @@ class OtelTracer(GenericTracer):
             raise RuntimeError(
                 "start_root_span must be used as a root span. Use start_span_action for nested spans."
             )
-        with self._tracer.start_as_current_span(name) as span:
-            new_stack = [name]
-            token = self._span_stack.set(new_stack)
-            try:
-                yield OtelSpan(name, span)
-            finally:
-                self._span_stack.reset(token)
-
-    @contextmanager
-    def start_root_span_with_context(
-        self,
-        name: str,
-        trace_id: str,
-        span_id: str,
-        trace_flags: int = 0x01,
-    ):
-        validator = SpanNameValidator(parts_count=3)
-        validator.validate(name)
-        stack = self._span_stack.get() or []
-        if stack:
-            raise RuntimeError(
-                "start_root_span_with_context must be used as a root span. Use start_span_action for nested spans."
+        otel_context = None
+        if context:
+            trace_id_int = self._cast_trace_id(context["trace_id"])
+            span_id_int = self._cast_span_id(context["span_id"])
+            trace_flags = context.get("trace_flags", 0x01)
+            span_context = SpanContext(
+                trace_id=trace_id_int,
+                span_id=span_id_int,
+                is_remote=True,
+                trace_flags=TraceFlags(trace_flags),
             )
-        trace_id_int = self._cast_trace_id(trace_id)
-        span_id_int = self._cast_span_id(span_id)
-        span_context = SpanContext(
-            trace_id=trace_id_int,
-            span_id=span_id_int,
-            is_remote=True,
-            trace_flags=TraceFlags(trace_flags),
-        )
-        non_recording_span = NonRecordingSpan(span_context)
-        ctx = set_span_in_context(non_recording_span)
-        with self._tracer.start_as_current_span(name, context=ctx) as span:
+            non_recording_span = NonRecordingSpan(span_context)
+            otel_context = set_span_in_context(non_recording_span)
+        with self._tracer.start_as_current_span(name, context=otel_context) as span:
             new_stack = [name]
             token = self._span_stack.set(new_stack)
             try:
@@ -150,6 +130,21 @@ class OtelTracer(GenericTracer):
                 yield OtelSpan(full_name, span)
             finally:
                 self._span_stack.reset(token)
+
+    def extract_context_from(
+        self, carrier: dict[str, Any]
+    ) -> GenericSpanContext | None:
+        try:
+            trace_id = carrier["trace_id"]
+            span_id = carrier["span_id"]
+            trace_flags = carrier.get("trace_flags", 0x01)
+            return {
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "trace_flags": trace_flags,
+            }
+        except KeyError:
+            return None
 
     def create_gauge(
         self, name: str, unit: str = "", description: str = ""

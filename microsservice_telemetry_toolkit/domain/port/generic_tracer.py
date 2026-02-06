@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
-from typing import Optional
+from typing import Optional, TypedDict, Any
 from .generic_histogram import GenericHistogram
 from .generic_gauge import GenericGauge
 from .generic_counter import GenericCounter
@@ -8,21 +8,25 @@ from .generic_up_down_counter import GenericUpDownCounter
 from .generic_span import GenericSpan
 
 
+class GenericSpanContext(TypedDict):
+    trace_id: str
+    span_id: str
+    trace_flags: int
+
+
 class GenericTracer(ABC):
     @abstractmethod
-    def start_root_span(self, name: str) -> AbstractContextManager[GenericSpan]: ...
-
-    @abstractmethod
-    def start_root_span_with_context(
-        self,
-        name: str,
-        trace_id: str,
-        span_id: str,
-        trace_flags: int = 0x01,
+    def start_root_span(
+        self, name: str, context: Optional[GenericSpanContext] = None
     ) -> AbstractContextManager[GenericSpan]: ...
 
     @abstractmethod
     def start_span_action(self, name: str) -> AbstractContextManager[GenericSpan]: ...
+
+    @abstractmethod
+    def extract_context_from(
+        self, carrier: dict[str, Any]
+    ) -> Optional[GenericSpanContext]: ...
 
     @abstractmethod
     def create_histogram(
