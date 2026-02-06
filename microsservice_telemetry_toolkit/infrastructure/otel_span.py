@@ -1,3 +1,4 @@
+from typing import Any
 from opentelemetry import trace
 from opentelemetry.trace import Span, types
 
@@ -26,6 +27,10 @@ class OtelSpan(GenericSpan):
         value: types.AttributeValue,
     ):
         self._span.set_attribute(key, value)
+
+    def set_attributes(self, attributes: dict[str, Any]) -> None:
+        for key, value in attributes.items():
+            self.set_attribute(key, value)
 
     def get_context(self) -> SpanContext:
         ctx = self._span.get_span_context()

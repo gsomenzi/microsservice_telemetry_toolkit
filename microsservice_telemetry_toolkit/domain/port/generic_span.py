@@ -25,6 +25,11 @@ class GenericSpan(ABC):
         ...
 
     @abstractmethod
+    def set_attributes(self, attributes: dict[str, Any]) -> None:
+        """Define múltiplos atributos no span."""
+        ...
+
+    @abstractmethod
     def get_context(self) -> SpanContext:
         """Retorna o contexto do span (trace_id, span_id, etc)."""
         ...
